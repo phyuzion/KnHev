@@ -28,8 +28,7 @@
 - 26_sel_bible.md — SEL 바이블(유닛/루브릭/운영)
 - 27_ai_grounding_knowledge_packs.md — 그라운딩/지식팩 전략
 - 28_coaching_skeleton_seed.md — 코칭 스켈레톤 베이스 시드
- - 29_system_summary.md — 시스템 설계 요약(현재 합의안)
- - 30_mcp_architecture.md — MCP 아키텍처/툴 브리지
- - 31_alignment_status.md — 문서 정렬 상태/체크리스트
- - 32_scenarios_and_curriculum.md — 시나리오/커리큘럼/스케줄러 설계
- - system_summary.md — 시스템 설계 요약(최종)
+- 29_mcp_architecture.md — MCP 아키텍처/툴 브리지
+- 30_alignment_status.md — 문서 정렬 상태/체크리스트
+- 31_scenarios_and_curriculum.md — 시나리오/커리큘럼/스케줄러 설계
+- system_summary.md — 시스템 설계 요약(최종)
