@@ -1,0 +1,13 @@
+{
+  "id_code": "KNOWLEDGE_PACK_TEMPLATE_V1",
+  "bible_version": "lite",
+  "includes": {
+    "persona": "COMPANION_PERSONA_V1",
+    "style": "STYLE_KO_V1",
+    "safety_rules": "SAFETY_RULES_V1",
+    "rubrics": ["SEL_RUBRIC_V1"],
+    "skeletons": ["BASE_SKEL_V1"],
+    "action_mapping": "ACTION_MAPPING_V1"
+  },
+  "notes": "이 팩을 ai.coach/ai.director 호출 컨텍스트에 삽입하여, 유연한 생성+안전/일관성을 동시에 확보한다."
+}

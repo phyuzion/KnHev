@@ -1,0 +1,14 @@
+{
+  "id_code": "BOUNDARY_L1_V1",
+  "title": "경계 설정 레벨1",
+  "base": "BASE_SKEL_V1",
+  "level": [1],
+  "overrides": {
+    "clarify": { "prompt_hint": "요청/상황의 사실과 감정 분리 확인" },
+    "micro_action": { "prompt_hint": "경계 문장 템플릿 연습: '지금은 어렵다 / 나는 OO하겠다'" },
+    "reinforce": { "prompt_hint": "스스로의 한계 존중 칭찬" }
+  },
+  "rubric_refs": ["SEL_RUBRIC_V1"],
+  "version": "1.0.0",
+  "stage": "dev"
+}

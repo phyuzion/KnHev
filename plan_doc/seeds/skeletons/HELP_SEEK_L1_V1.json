@@ -1,0 +1,14 @@
+{
+  "id_code": "HELP_SEEK_L1_V1",
+  "title": "도움 요청 레벨1",
+  "base": "BASE_SKEL_V1",
+  "level": [1],
+  "overrides": {
+    "clarify": { "prompt_hint": "필요한 도움/안전/정보를 구체화" },
+    "micro_action": { "prompt_hint": "도움 요청 메시지 초안 작성 + 신뢰할 사람 1명 선택" },
+    "reinforce": { "prompt_hint": "도움 요청의 용기 인정" }
+  },
+  "rubric_refs": ["SEL_RUBRIC_V1"],
+  "version": "1.0.0",
+  "stage": "dev"
+}

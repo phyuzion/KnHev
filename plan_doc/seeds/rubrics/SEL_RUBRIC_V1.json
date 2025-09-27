@@ -1,0 +1,11 @@
+{
+  "id_code": "SEL_RUBRIC_V1",
+  "dimensions": [
+    {"name":"empathy","weights":0.25,"levels":{"E0":"부재","E1":"시도","E2":"적절","E3":"깊음"}},
+    {"name":"boundary","weights":0.2,"levels":{"E0":"부재","E1":"모호","E2":"명확","E3":"일관"}},
+    {"name":"help_seek","weights":0.2,"levels":{"E0":"회피","E1":"암시","E2":"요청","E3":"구체"}},
+    {"name":"conflict","weights":0.15,"levels":{"E0":"격화","E1":"논쟁","E2":"완화","E3":"해결"}},
+    {"name":"responsibility","weights":0.1,"levels":{"E0":"회피","E1":"인정","E2":"수정","E3":"복구"}},
+    {"name":"digital_citizenship","weights":0.1,"levels":{"E0":"무시","E1":"인식","E2":"적용","E3":"모범"}}
+  ]
+}

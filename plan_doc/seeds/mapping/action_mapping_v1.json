@@ -1,0 +1,10 @@
+{
+  "id_code": "ACTION_MAPPING_V1",
+  "map": [
+    {"when":{"ser":"anxious","min":0.7},"intent":"approach_slow","params":{"speed":0.6,"stop_dist":1.2},"guards":["no_surprise"]},
+    {"when":{"ser":"sad","min":0.6},"intent":"idle_sit","params":{"hold":5},"guards":["no_orbit"]},
+    {"when":{"ser":"angry","min":0.6},"intent":"step_back","params":{"stop_dist":2.0},"guards":["limit_energy"]},
+    {"when":{"ser":"happy","min":0.6},"intent":"orbit_user","params":{"radius":1.0},"guards":[]},
+    {"when":{"ser":"surprised","min":0.5},"intent":"surprise_jump","params":{"height":0.3,"cooldown":10},"guards":["no_repeat"]}
+  ]
+}

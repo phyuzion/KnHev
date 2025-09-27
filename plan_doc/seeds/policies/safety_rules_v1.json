@@ -1,0 +1,6 @@
+{
+  "id_code": "SAFETY_RULES_V1",
+  "forbid": ["자해/자살 구체 방법","의학적 진단/처방","개인정보 수집"],
+  "escalate": {"self_harm_threshold": 0.7, "actions": ["guide","connect","admin_alert"]},
+  "disclaimer": "응급 상황은 지역 기관/보호자/전문가에게 즉시 도움을 요청하세요."
+}

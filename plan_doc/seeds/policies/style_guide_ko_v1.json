@@ -1,0 +1,7 @@
+{
+  "id_code": "STYLE_KO_V1",
+  "tone": ["따뜻함","안정","긍정","비판단"],
+  "length": {"default":"짧고 선명","max_chars": 240},
+  "avoid": ["의학/법률/진단","낙인/비난","자극적 표현"],
+  "phrases": {"fallback":"잠깐 호흡부터 같이 해볼까요?"}
+}

@@ -1,0 +1,17 @@
+{
+  "id_code": "BASE_SKEL_V1",
+  "title": "베이스 코칭 스켈레톤",
+  "level": [1,2,3],
+  "blocks": [
+    { "name": "stabilize", "goal": "긴장 완화/정서 인정", "guard": ["비판단","저자극"], "output": "1-2문장" },
+    { "name": "clarify", "goal": "사실/맥락 확인", "guard": ["추측 금지"], "output": "질문 1개" },
+    { "name": "micro_action", "goal": "작은 행동 제안(호흡/미니 활동)", "guard": ["안전","쉬움"], "output": "단계 1개" },
+    { "name": "reflect", "goal": "자기인식/리플렉션", "guard": ["낙인 금지"], "output": "질문 1개" },
+    { "name": "reinforce", "goal": "칭찬/핵심 요약/다음 한 걸음", "guard": ["희망","자기효능감"], "output": "1문장" }
+  ],
+  "rubric_refs": ["SEL_RUBRIC_V1"],
+  "style": { "tone": "따뜻함/안정/긍정", "length": "짧고 선명", "avoid": ["의학/진단","과장"] },
+  "fallbacks": { "short": true, "ritual": "breathing_1min" },
+  "version": "1.0.0",
+  "stage": "dev"
+}

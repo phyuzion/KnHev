@@ -1,0 +1,35 @@
+## Project Plan Index
+
+- 01_product_vision.md — 제품 비전/핵심 컨셉/브랜드 톤
+- 02_ux_journey.md — 사용자 여정/온보딩~세션~리추얼~세이프티
+- 03_architecture_overview.md — 전체 기술 아키텍처 요약
+- 04_3d_scene_design.md — 3D 씬/포인트/날씨/에셋 파이프라인
+- 05_character_behavior_mapping.md — 감정→행동 매핑/Idle 시스템
+- 06_voice_ondevice_pipeline.md — 온디바이스 음성 파이프라인/SER 모델
+- 07_backend_intent_mapping.md — 실시간 스트림/tRPC/의도 판단/세이프티
+- 08_content_engine.md — 정서교육 콘텐츠 엔진/레시피/랭킹
+- 09_admin_tools.md — 어드민 스택/포인트·자산/퀘스트 스튜디오/AI 보조 배경/프리뷰 패리티
+- 10_data_model.md — 개념 데이터 모델/인덱스/로그/보존(MongoDB)
+- 11_security_privacy_safety.md — 프라이버시/보안/세이프티 정책
+- 12_performance_goals.md — 성능 목표/모바일 기준/웹GL
+- 13_costs_revenue.md — 비용·수익 가정/가격/손익분기
+- 14_roadmap_sprints.md — 스프린트/로드맵/마일스톤
+- 15_qaqc_testing.md — QA/테스트 전략/가드레일
+- 16_monitoring_ops.md — 모니터링/운영/런북/KPI
+- 17_accessibility_localization.md — 접근성/현지화
+- 18_risks_mitigations.md — 리스크/완화
+- 19_team_roles.md — 팀/역할
+- 20_launch_criteria.md — 런칭 기준(Alpha/Beta/Launch)
+- 21_brand_naming.md — 브랜드/네이밍/도메인 가이드
+- 22_governance_operating_model.md — 역할/책임(RACI)·PM 운영모델·의사결정
+- 23_memory_graph_design.md — 메모리 그래프 설계
+- 24_environment_bgm_engine.md — 환경·클래식 BGM 동기화 엔진
+- 25_ai_system_design.md — AI 시스템(MAGI/Autopilot/공급자 전략)
+- 26_sel_bible.md — SEL 바이블(유닛/루브릭/운영)
+- 27_ai_grounding_knowledge_packs.md — 그라운딩/지식팩 전략
+- 28_coaching_skeleton_seed.md — 코칭 스켈레톤 베이스 시드
+ - 29_system_summary.md — 시스템 설계 요약(현재 합의안)
+ - 30_mcp_architecture.md — MCP 아키텍처/툴 브리지
+ - 31_alignment_status.md — 문서 정렬 상태/체크리스트
+ - 32_scenarios_and_curriculum.md — 시나리오/커리큘럼/스케줄러 설계
+ - system_summary.md — 시스템 설계 요약(최종)

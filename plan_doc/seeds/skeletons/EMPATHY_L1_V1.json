@@ -1,0 +1,14 @@
+{
+  "id_code": "EMPATHY_L1_V1",
+  "title": "공감 레벨1",
+  "base": "BASE_SKEL_V1",
+  "level": [1],
+  "overrides": {
+    "clarify": { "prompt_hint": "상대의 감정을 라벨링하며 사실 확인: '지금 ○○하게 느끼는 게 맞을까?'" },
+    "micro_action": { "prompt_hint": "호흡 1분 또는 감정 단어 3개 적기" },
+    "reinforce": { "prompt_hint": "공감 시도 인정 + 한 문장 요약" }
+  },
+  "rubric_refs": ["SEL_RUBRIC_V1"],
+  "version": "1.0.0",
+  "stage": "dev"
+}
