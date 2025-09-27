@@ -6,7 +6,8 @@
 
 ## AI 트레이스
 - ai.reply/safety.blocked/llm.request 등 `ai_events` 기록
-- 모델/버전/팩 버전 핀 계획 반영 가능
+- 필수 필드: `ai_traceId`, `provider`, `model`, `pack_version`, `autopilot_phase?('propose'|'validate'|'shadow'|'promote')`
 
 ## 제안
 - 에러/성능 메트릭, 샘플링, 트레이스 ID, 요청 상관키
+ - Autopilot 가드 이벤트(토글/승격/롤백) 요약 기록
