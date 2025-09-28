@@ -4,9 +4,11 @@ import { z } from 'zod';
 import { generateText } from './llm/adapter.js';
 import { setupRealtime } from './realtime.js';
 import { registerAuthRoutes } from './routes/auth.js';
+import { registerAdminAuthRoutes } from './routes/admin_auth.js';
 import { registerAiRoutes } from './routes/ai.js';
 import { registerBibleRoutes } from './routes/bible.js';
 import { registerKnowledgeRoutes } from './routes/knowledge.js';
+import { registerBibleRulesRoutes } from './routes/bible_rules.js';
 import { registerSkeletonRoutes } from './routes/skeletons.js';
 import { registerSchedulerRoutes } from './routes/scheduler.js';
 import { registerSummariesRoutes } from './routes/summaries.js';
@@ -32,6 +34,7 @@ export async function initTrpc(app: FastifyInstance) {
   const t = initTRPC.create();
 
   const rt = setupRealtime(app);
+  (app as any)._realtime = rt;
 
   // Simple in-memory rate limiter (per IP + route key)
   const rateCounters = new Map<string, { count: number; resetAt: number }>();
@@ -62,12 +65,30 @@ export async function initTrpc(app: FastifyInstance) {
     const auth = req.headers['authorization'];
     if (auth && auth.startsWith('Bearer ')) {
       const token = auth.slice('Bearer '.length);
+      // Try admin JWT first
+      const JWT_SECRET = process.env.ADMIN_JWT_SECRET || 'devsecret';
       try {
-        const decoded = await (app as any).verifyFirebaseIdToken(token);
-        (req as any).user = { uid: decoded.uid, email: decoded.email };
+        const decoded: any = await (async () => {
+          const { default: jwt } = await import('jsonwebtoken');
+          return jwt.verify(token, JWT_SECRET);
+        })();
+        if (decoded && decoded.kind === 'admin') {
+          (req as any).user = { uid: decoded.sub, email: `${decoded.sub}@admin.local`, roles: decoded.roles || ['admin'] };
+        }
       } catch {
-        // ignore, keep unauthenticated
+        // Fallback: Firebase ID token
+        try {
+          const decoded = await (app as any).verifyFirebaseIdToken(token);
+          (req as any).user = { uid: decoded.uid, email: decoded.email };
+        } catch {
+          // ignore, keep unauthenticated
+        }
       }
+    }
+    // Dev bypass: allow local development without Firebase token
+    if (!(req as any).user && process.env.DEV_AUTH_BYPASS === '1') {
+      const devUid = (req.headers['x-user-id'] as string) || 'dev-admin';
+      (req as any).user = { uid: devUid, email: `${devUid}@local.dev` };
     }
     // naive per-route rate limits
     const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'local';
@@ -89,15 +110,33 @@ export async function initTrpc(app: FastifyInstance) {
   // auth helper
   (app as any).ensureAuth = (req: any, reply: any) => {
     if (!req?.user) {
+      if (process.env.DEV_AUTH_BYPASS === '1') {
+        req.user = { uid: 'dev-admin', email: 'dev-admin@local.dev' };
+        return req.user;
+      }
       reply.code(401).send({ error: 'unauthenticated' });
       return null;
     }
     return req.user;
   };
 
+  (app as any).ensureAdmin = (req: any, reply: any) => {
+    const user = (app as any).ensureAuth(req, reply);
+    if (!user) return null;
+    const roles: string[] = Array.isArray(user.roles) ? user.roles : (req?.user?.roles || []);
+    const isAdmin = roles.includes('admin') || user.uid === 'dev-admin';
+    if (!isAdmin) {
+      reply.code(403).send({ error: 'forbidden' });
+      return null;
+    }
+    return user;
+  };
+
   await registerAuthRoutes(app);
+  await registerAdminAuthRoutes(app);
   await registerAiRoutes(app, rt);
   await registerBibleRoutes(app);
+  await registerBibleRulesRoutes(app);
   await registerKnowledgeRoutes(app);
   await registerSkeletonRoutes(app);
   await registerSchedulerRoutes(app, rt);
@@ -115,45 +154,4 @@ export async function initTrpc(app: FastifyInstance) {
   await registerStorageRoutes(app);
   await registerScenarioRoutes(app);
   await registerCurriculumRoutes(app);
-
-  // auth 라우트는 routes/auth.ts에서 등록
-
-  // ai.reply.generate는 routes/ai.ts에서 등록
-
-  const db: any = (app as any).mongo?.db;
-  const { ObjectId } = await import('mongodb');
-
-  // bible.* 모듈로 이동
-
-  // knowledge.* 모듈로 이동
-
-  // skeletons.* 모듈로 이동
-
-  // ai.events.* 모듈로 이동
-
-  // sel.evaluations.* 모듈로 이동
-
-  // summaries.daily.* 모듈로 이동
-
-  // scenario.plays.* 는 summaries/observations로 분리 예정이지만 유지 가능
-
-  // history.search 는 summaries 모듈로 이동
-
-  // ai.master 라우트는 routes/ai.ts에서 등록
-
-  // scheduler.jobs.* 는 routes/scheduler.ts에서 등록
-
-  // users.getMe 는 sessions 모듈로 이동
-
-  // sessions.* 모듈로 이동
-
-  // dialogue.* 모듈로 이동
-
-  // metrics/audio/interactions.* 모듈로 이동
-
-  // summaries.session.* 모듈로 이동
-
-  // env/bgm.* 모듈로 이동
-
-  // ai.perception/director 는 추후 모듈화 예정
 }

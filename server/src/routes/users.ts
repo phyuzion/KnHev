@@ -4,6 +4,16 @@ import type { FastifyInstance } from 'fastify';
 export async function registerUserRoutes(app: FastifyInstance) {
   const db: any = (app as any).mongo?.db;
   const { ObjectId } = await import('mongodb');
+  // list
+  app.get('/trpc/users.list', async (req, reply) => {
+    try {
+      if (!db) return reply.code(500).send({ error: 'db_not_ready' });
+      const q = (req.query as any) || {};
+      const limit = Math.min(Number(q.limit || 50), 200);
+      const items = await db.collection('user_profiles').find({}).sort({ updated_at: -1 }).limit(limit).toArray();
+      reply.send({ items: items.map((x:any)=>({ _id: x._id, display_name: x.display_name, locale: x.locale, avatar_url: x.avatar_url, updated_at: x.updated_at })) });
+    } catch (e:any) { reply.code(500).send({ error: e?.message || 'error' }); }
+  });
 
   // profile
   app.post('/trpc/users.profile.upsert', async (req, reply) => {

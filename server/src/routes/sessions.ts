@@ -28,6 +28,21 @@ export async function registerSessionRoutes(app: FastifyInstance) {
       reply.send({ ok: true });
     } catch (e: any) { reply.code(500).send({ error: e?.message || 'error' }); }
   });
+
+  app.get('/trpc/sessions.list', async (req, reply) => {
+    try {
+      if (!db) return reply.code(500).send({ error: 'db_not_ready' });
+      const q = (req.query as any) || {};
+      const userId = q.userId || (req as any).user?.uid || 'anon';
+      const limit = Math.min(Number(q.limit || 20), 100);
+      const items = await db.collection('sessions')
+        .find({ user_id: userId })
+        .sort({ t_start: -1 })
+        .limit(limit)
+        .toArray();
+      reply.send({ items });
+    } catch (e: any) { reply.code(500).send({ error: e?.message || 'error' }); }
+  });
 }
 
 

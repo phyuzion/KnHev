@@ -33,6 +33,19 @@ export async function registerSummariesRoutes(app: FastifyInstance) {
     } catch (e: any) { if (e?.name==='ZodError') return reply.code(400).send({ error:'invalid_input', issues: e.issues }); reply.code(500).send({ error: e?.message || 'error' }); }
   });
 
+  app.get('/trpc/summaries.session.get', async (req, reply) => {
+    try {
+      const db: any = (app as any).mongo?.db;
+      if (!db) return reply.code(500).send({ error: 'db_not_ready' });
+      const q = (req.query as any) || {};
+      const sessionId = q.sessionId;
+      if (!sessionId) return reply.code(400).send({ error: 'sessionId_required' });
+      const doc = await db.collection('session_summaries').findOne({ session_id: sessionId });
+      if (!doc) return reply.send(null);
+      reply.send({ _id: doc._id.toString(), session_id: doc.session_id, ts: doc.ts, summary_text: doc.summary_text, topics: doc.topics || [], key_points: doc.key_points || [] });
+    } catch (e: any) { reply.code(500).send({ error: e?.message || 'error' }); }
+  });
+
   app.post('/trpc/summaries.daily.upsert', async (req, reply) => {
     try {
       if (!db) return reply.code(500).send({ error: 'db_not_ready' });

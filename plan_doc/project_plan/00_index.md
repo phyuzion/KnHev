@@ -32,3 +32,4 @@
 - 30_alignment_status.md — 문서 정렬 상태/체크리스트
 - 31_scenarios_and_curriculum.md — 시나리오/커리큘럼/스케줄러 설계
 - system_summary.md — 시스템 설계 요약(최종)
+ - 33_admin_console_design.md — Admin 콘솔 통합 설계(MAGI/Autopilot/Bible)

@@ -69,6 +69,8 @@ async function start() {
   const channels = {
     masterProposals: new Set<any>(),
     schedulerJobs: new Set<any>(),
+    dialogueIntents: new Set<any>(),
+    aiEvents: new Set<any>(),
   };
   (fastify as any).wsChannels = channels;
   wss.on('connection', (socket: any, req: any) => {
@@ -79,6 +81,12 @@ async function start() {
     } else if (url.startsWith('/ws/scheduler.jobs')) {
       channels.schedulerJobs.add(socket);
       socket.on('close', () => channels.schedulerJobs.delete(socket));
+    } else if (url.startsWith('/ws/dialogue.intents')) {
+      channels.dialogueIntents.add(socket);
+      socket.on('close', () => channels.dialogueIntents.delete(socket));
+    } else if (url.startsWith('/ws/ai.events')) {
+      channels.aiEvents.add(socket);
+      socket.on('close', () => channels.aiEvents.delete(socket));
     } else {
       socket.close();
     }

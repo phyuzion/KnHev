@@ -6,13 +6,16 @@
   "scripts": {
     "dev": "NODE_ENV=development tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "build": "tsc -p ."
+    "build": "tsc -p .",
+    "seed": "NODE_ENV=development tsx scripts/seed.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.645.0",
+    "@aws-sdk/s3-request-presigner": "^3.645.0",
     "@fastify/cors": "^11.1.0",
     "@fastify/websocket": "^10.0.1",
     "@trpc/server": "^11.6.0",
@@ -21,11 +24,10 @@
     "firebase": "^12.3.0",
     "firebase-admin": "^13.5.0",
     "google-auth-library": "^10.3.0",
+    "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.20.0",
     "pino": "^9.11.0",
     "ws": "^8.18.0",
-    "@aws-sdk/client-s3": "^3.645.0",
-    "@aws-sdk/s3-request-presigner": "^3.645.0",
     "zod": "^4.1.11"
   },
   "devDependencies": {
