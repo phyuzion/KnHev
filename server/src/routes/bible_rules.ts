@@ -28,6 +28,23 @@ export async function registerBibleRulesRoutes(app: FastifyInstance) {
     } catch (e: any) { reply.code(500).send({ error: e?.message || 'error' }); }
   });
 
+  // changes list
+  app.get('/trpc/bible.rules.changes.list', async (req, reply) => {
+    try {
+      if (!db) return reply.code(500).send({ error: 'db_not_ready' });
+      const q = (req.query as any) || {};
+      const limit = Math.min(Number(q.limit || 100), 300);
+      const filter: any = {};
+      if (q.ruleId) filter.rule_id = new ObjectId(String(q.ruleId));
+      const items = await db.collection('bible_rule_changes')
+        .find(filter)
+        .sort({ created_at: -1 })
+        .limit(limit)
+        .toArray();
+      reply.send({ items: items.map((d:any)=>({ ...d, _id: d._id?.toString?.() })) });
+    } catch (e:any) { reply.code(500).send({ error: e?.message || 'error' }); }
+  });
+
   // upsert
   app.post('/trpc/bible.rules.upsert', async (req, reply) => {
     try {
@@ -44,6 +61,8 @@ export async function registerBibleRulesRoutes(app: FastifyInstance) {
         provenance: z.any().optional(),
       });
       const input = schema.parse(((req.body as any)?.input || {}));
+      const now = new Date().toISOString();
+      const traceId = `trace_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
       const filter: any = {};
       if (input._id) filter._id = new ObjectId(input._id);
       const doc: any = {
@@ -54,16 +73,18 @@ export async function registerBibleRulesRoutes(app: FastifyInstance) {
         tags: input.tags || [],
         version: input.version || 'v1',
         provenance: input.provenance || {},
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       };
       const r = await db.collection('bible_rules').findOneAndUpdate(
         filter,
-        { $set: doc, $setOnInsert: { created_at: new Date().toISOString(), author: (req as any).user?.uid || 'admin' } },
+        { $set: doc, $setOnInsert: { created_at: now, author: (req as any).user?.uid || 'admin' } },
         { upsert: true, returnDocument: 'after' as const }
       );
       const saved = r.value && { ...r.value, _id: r.value._id.toString() };
       if (saved) {
-        await db.collection('bible_rule_changes').insertOne({ rule_id: saved._id, change_type: input._id ? 'update' : 'create', by: (req as any).user?.uid || 'admin', diff: doc, created_at: new Date().toISOString() });
+        await db.collection('bible_rule_changes').insertOne({ rule_id: saved._id, change_type: input._id ? 'update' : 'create', by: (req as any).user?.uid || 'admin', diff: doc, trace_id: traceId, created_at: now });
+        const rtAny: any = (app as any)._realtime;
+        rtAny?.broadcastAiEvent?.({ type: 'master.rule_upserted', trace_id: traceId, payload: { rule_id: saved._id, status: saved.status }, ts: now });
       }
       reply.send(saved);
     } catch (e: any) { if (e?.name==='ZodError') return reply.code(400).send({ error:'invalid_input', issues: e.issues }); reply.code(500).send({ error: e?.message || 'error' }); }
@@ -76,16 +97,48 @@ export async function registerBibleRulesRoutes(app: FastifyInstance) {
       if (!db) return reply.code(500).send({ error: 'db_not_ready' });
       const id = (req.body as any)?.input?.id as string;
       if (!id) return reply.code(400).send({ error: 'id_required' });
+      const now = new Date().toISOString();
+      const traceId = `trace_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
       const r = await db.collection('bible_rules').findOneAndUpdate(
         { _id: new ObjectId(id) },
-        { $set: { status: 'archived', updated_at: new Date().toISOString() } },
+        { $set: { status: 'archived', updated_at: now } },
         { returnDocument: 'after' as const }
       );
       if (r.value) {
-        await db.collection('bible_rule_changes').insertOne({ rule_id: id, change_type: 'archive', by: (req as any).user?.uid || 'admin', created_at: new Date().toISOString() });
+        await db.collection('bible_rule_changes').insertOne({ rule_id: id, change_type: 'archive', by: (req as any).user?.uid || 'admin', trace_id: traceId, created_at: now });
+        const rtAny: any = (app as any)._realtime;
+        rtAny?.broadcastAiEvent?.({ type: 'master.rule_archived', trace_id: traceId, payload: { rule_id: String(r.value._id), status: 'archived' }, ts: now });
       }
       reply.send(r.value ? { ...r.value, _id: r.value._id.toString() } : null);
     } catch (e: any) { reply.code(500).send({ error: e?.message || 'error' }); }
+  });
+
+  // promote (draft -> active)
+  app.post('/trpc/bible.rules.promote', async (req, reply) => {
+    try {
+      if (!(app as any).ensureAdmin(req, reply)) return;
+      if (!db) return reply.code(500).send({ error: 'db_not_ready' });
+      const schema = z.object({ ruleId: z.string().min(1), notes: z.string().optional() });
+      const input = schema.parse(((req.body as any)?.input || {}));
+      const ruleId = new ObjectId(input.ruleId);
+      const now = new Date().toISOString();
+      const r = await db.collection('bible_rules').findOneAndUpdate(
+        { _id: ruleId },
+        { $set: { status: 'active', updated_at: now } },
+        { returnDocument: 'after' as const }
+      );
+      if (!r.value) return reply.code(404).send({ error: 'not_found' });
+      await db.collection('bible_rule_changes').insertOne({
+        rule_id: r.value._id,
+        change_type: 'promote',
+        by: (req as any).user?.uid || 'admin',
+        notes: input.notes || null,
+        created_at: now,
+      });
+      const rtAny: any = (app as any)._realtime;
+      rtAny?.broadcastAiEvent?.({ type: 'master.rule_promoted', payload: { rule_id: String(r.value._id), status: 'active' }, ts: now });
+      reply.send({ ok: true, rule: { ...r.value, _id: String(r.value._id) } });
+    } catch (e: any) { if (e?.name==='ZodError') return reply.code(400).send({ error:'invalid_input', issues: e.issues }); reply.code(500).send({ error: e?.message || 'error' }); }
   });
 
   // propose rule from dialogue (consolidated from rules_master)
@@ -95,6 +148,7 @@ export async function registerBibleRulesRoutes(app: FastifyInstance) {
       if (!db) return reply.code(500).send({ error: 'db_not_ready' });
       const schema = z.object({ sessionId: z.string().optional(), userId: z.string().optional(), limit: z.number().optional() });
       const input = schema.parse(((req.body as any)?.input || {}));
+      const traceId = `trace_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
       const q: any = {};
       if (input.sessionId) q.session_id = input.sessionId;
       if (input.userId) q.user_id = input.userId;
@@ -119,12 +173,14 @@ export async function registerBibleRulesRoutes(app: FastifyInstance) {
         },
         created_at: new Date().toISOString(),
       };
-      await db.collection('bible_rule_changes').insertOne({ rule_id: null, change_type: 'proposal', by: (req as any).user?.uid || 'admin', proposal, created_at: new Date().toISOString() });
+      await db.collection('bible_rule_changes').insertOne({ rule_id: null, change_type: 'proposal', by: (req as any).user?.uid || 'admin', proposal, trace_id: traceId, created_at: new Date().toISOString() });
       const rtAny: any = (app as any)._realtime;
-      rtAny?.broadcastAiEvent?.({ type: 'master.rule_proposal', payload: proposal, ts: new Date().toISOString() });
-      reply.send({ ok: true, proposal });
+      rtAny?.broadcastAiEvent?.({ type: 'master.rule_proposal', user_id: input.userId || (req as any).user?.uid || null, session_id: input.sessionId || null, trace_id: traceId, payload: proposal, ts: new Date().toISOString() });
+      reply.send({ ok: true, proposal, traceId });
     } catch (e: any) { if (e?.name==='ZodError') return reply.code(400).send({ error:'invalid_input', issues: e.issues }); reply.code(500).send({ error: e?.message || 'error' }); }
   });
+
+  // (removed) Back-compat ai.master.* endpoints to avoid route duplication with routes/ai.ts
 }
 
 

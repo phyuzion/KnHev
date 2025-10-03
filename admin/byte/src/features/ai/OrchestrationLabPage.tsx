@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { aiOrchestratorChat, listUsers, listSessions, listDialogueTurns, getSessionSummary } from '../../api'
+import { aiOrchestratorChat, listUsers, listSessions, listDialogueTurns, getSessionSummary, proposeRuleFromDialogue, ensureSession } from '../../api'
 import { toWsUrl } from '../../lib/config'
 
 type LogItem = { ts: string; text: string }
@@ -65,6 +65,19 @@ export default function OrchestrationLabPage() {
 
   useEffect(() => { loadUsers() }, [])
   useEffect(() => { loadSessionsAndHistory(selectedUserId) }, [selectedUserId])
+
+  // ensure single persistent session when user is selected
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!selectedUserId) return;
+        const ensured = await ensureSession(selectedUserId);
+        if (ensured?._id) {
+          setSelectedSessionId(prev => prev || ensured._id)
+        }
+      } catch {}
+    })();
+  }, [selectedUserId])
 
   useEffect(() => {
     let ws1: WebSocket | null = null
@@ -134,17 +147,34 @@ export default function OrchestrationLabPage() {
     finally { setSending(false) }
   }
 
+  async function proposeRule() {
+    setSending(true); setError('')
+    try {
+      const sid = selectedSessionId || sessionId
+      const uid = selectedUserId || undefined
+      const res = await proposeRuleFromDialogue({ sessionId: sid, userId: uid, limit: 50 })
+      setStagesPane(prev => [{ ts: new Date().toISOString(), text: `RULE PROPOSAL: ${JSON.stringify(res.proposal)}` }, ...prev])
+    } catch (e:any) { setError(e?.message || 'failed') }
+    finally { setSending(false) }
+  }
+
   const header = useMemo(() => (
       <div className="flex items-center justify-between gap-4">
       <div className="font-semibold">Orchestration Lab</div>
       <div className="flex items-center gap-2 text-sm">
         <input className="border rounded px-2 py-1 w-[220px]" placeholder="session id" value={sessionId} onChange={e=>setSessionId(e.target.value)} />
-          <select className="border rounded px-2 py-1 w-[220px]" value={selectedUserId} onChange={e=>setSelectedUserId(e.target.value)}>
+          <select className="border rounded px-2 py-1 w-[220px]" value={selectedUserId} onChange={e=>{
+            const uid = e.target.value
+            setSelectedUserId(uid)
+            const u = users.find(x=>x._id===uid) as any
+            if (u?.current_session_id) setSelectedSessionId(u.current_session_id)
+          }}>
             <option value="">(select user)</option>
             {users.map(u=>(<option key={u._id} value={u._id}>{u.display_name || u._id}</option>))}
           </select>
           <button className="px-2 py-1 border rounded" onClick={loadUsers}>Refresh</button>
         <button className="px-2.5 py-1.5 bg-neutral-900 text-white rounded" onClick={send} disabled={sending}>Send</button>
+        <button className="px-2.5 py-1.5 bg-blue-600 text-white rounded" onClick={proposeRule} disabled={sending}>Propose Rule</button>
         <div className="text-neutral-500">{sending?'Sending…':error? <span className="text-red-600">{error}</span>:''}</div>
       </div>
     </div>

@@ -26,18 +26,26 @@ export async function registerDialogueRoutes(app: FastifyInstance) {
     try {
       if (!(app as any).ensureAuth(req, reply)) return;
       if (!db) return reply.code(500).send({ error: 'db_not_ready' });
-      const schema = z.object({ sessionId: z.string().min(1), text: z.string().min(1), asUserId: z.string().optional() });
+      const schema = z.object({ sessionId: z.string().optional(), text: z.string().min(1), asUserId: z.string().optional() });
       const input = schema.parse(((req.body as any)?.input || {}));
       const userId = input.asUserId || (req as any).user?.uid || 'anon';
+      // ensure single persistent session per user if sessionId missing
+      let sessionId = input.sessionId;
+      if (!sessionId) {
+        const ensureResp = await (app as any).inject({ method: 'POST', url: '/trpc/sessions.ensure', payload: { input: { userId } } });
+        const ensureJson = ensureResp?.json?.() || {};
+        sessionId = ensureJson?._id || ensureJson?.id || sessionId;
+      }
+      if (!sessionId) return reply.code(400).send({ error: 'session_unavailable' });
       const now = new Date().toISOString();
       const traceId = `trace_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
 
       // persist user turn
-      const userTurnDoc = { user_id: userId, session_id: input.sessionId, role: 'user', text: input.text, created_at: now, trace_id: traceId };
+      const userTurnDoc = { user_id: userId, session_id: sessionId, role: 'user', text: input.text, created_at: now, trace_id: traceId };
       await db.collection('dialogue_turns').insertOne(userTurnDoc);
-      await db.collection('ai_events').insertOne({ user_id: userId, session_id: input.sessionId, event_type: 'user_turn.saved', payload: { text: input.text }, ts: now, trace_id: traceId });
+      await db.collection('ai_events').insertOne({ user_id: userId, session_id: sessionId, event_type: 'user_turn.saved', payload: { text: input.text }, ts: now, trace_id: traceId });
       const rtAny: any = (app as any)._realtime;
-      rtAny?.broadcastAiEvent?.({ type: 'user_turn.saved', user_id: userId, session_id: input.sessionId, ts: now, trace_id: traceId, payload: { text: input.text } });
+      rtAny?.broadcastAiEvent?.({ type: 'user_turn.saved', user_id: userId, session_id: sessionId, ts: now, trace_id: traceId, payload: { text: input.text } });
 
       // Bridge analysis (textual)
       const bridgeSystem = '당신은 감정 동반자 시스템의 브릿지(Perception/Coach) 설명자입니다. 한국어로 간결히 기술하세요.';
@@ -49,12 +57,12 @@ export async function registerDialogueRoutes(app: FastifyInstance) {
         locale: 'ko'
       });
       await db.collection('ai_events').insertOne({
-        user_id: userId, session_id: input.sessionId, event_type: 'bridge.analysis',
+        user_id: userId, session_id: sessionId, event_type: 'bridge.analysis',
         payload: { text: bridgeAnalysisText },
         provider: process.env.LLM_PROVIDER || 'gemini', model: process.env.GEMINI_MODEL || null,
         pack_version: process.env.PACK_VERSION || null, autopilot_phase: 'bridge', ts: now, trace_id: traceId,
       });
-      rtAny?.broadcastAiEvent?.({ type: 'bridge.analysis', user_id: userId, session_id: input.sessionId, ts: now, trace_id: traceId, payload: { text: bridgeAnalysisText } });
+      rtAny?.broadcastAiEvent?.({ type: 'bridge.analysis', user_id: userId, session_id: sessionId, ts: now, trace_id: traceId, payload: { text: bridgeAnalysisText } });
 
       // Perception → 실제 라우트 호출
       const perResp = await (app as any).inject({
@@ -64,21 +72,21 @@ export async function registerDialogueRoutes(app: FastifyInstance) {
       const perJson = perResp?.json?.() || {};
       const state = perJson?.state || { need: 'calm', level: 1, risk: 0 };
       await db.collection('ai_events').insertOne({
-        user_id: userId, session_id: input.sessionId, event_type: 'perception.output', payload: state,
+        user_id: userId, session_id: sessionId, event_type: 'perception.output', payload: state,
         provider: process.env.LLM_PROVIDER || 'gemini', model: process.env.GEMINI_MODEL || null,
         pack_version: process.env.PACK_VERSION || null, autopilot_phase: 'perception', ts: now, trace_id: traceId,
       });
-      rtAny?.broadcastAiEvent?.({ type: 'perception.output', user_id: userId, session_id: input.sessionId, ts: now, trace_id: traceId, payload: state });
+      rtAny?.broadcastAiEvent?.({ type: 'perception.output', user_id: userId, session_id: sessionId, ts: now, trace_id: traceId, payload: state });
 
       // Director → 실제 라우트 호출
       const dirResp = await (app as any).inject({ method: 'POST', url: '/trpc/ai.director.decideActions', payload: { input: { state } } });
       const intent = dirResp?.json?.() || { intent: 'approach_slow', expr: 'neutral', anim: 'Walk', ts: now };
       await db.collection('ai_events').insertOne({
-        user_id: userId, session_id: input.sessionId, event_type: 'director.intent', payload: intent,
+        user_id: userId, session_id: sessionId, event_type: 'director.intent', payload: intent,
         provider: process.env.LLM_PROVIDER || 'gemini', model: process.env.GEMINI_MODEL || null,
         pack_version: process.env.PACK_VERSION || null, autopilot_phase: 'director', ts: now, trace_id: traceId,
       });
-      rtAny?.broadcastAiEvent?.({ type: 'director.intent', user_id: userId, session_id: input.sessionId, ts: now, trace_id: traceId, payload: intent });
+      rtAny?.broadcastAiEvent?.({ type: 'director.intent', user_id: userId, session_id: sessionId, ts: now, trace_id: traceId, payload: intent });
 
       // Master review (textual oversight)
       const masterSystem = '당신은 마스터 AI입니다. 브릿지 분석과 디렉터 인텐트를 검토하여 승인/조정 사유를 간결히 서술하세요.';
@@ -89,12 +97,12 @@ export async function registerDialogueRoutes(app: FastifyInstance) {
       });
       const masterDecision = 'approve';
       await db.collection('ai_events').insertOne({
-        user_id: userId, session_id: input.sessionId, event_type: 'master.review',
+        user_id: userId, session_id: sessionId, event_type: 'master.review',
         payload: { notes: masterReviewText, decision: masterDecision },
         provider: process.env.LLM_PROVIDER || 'gemini', model: process.env.GEMINI_MODEL || null,
         pack_version: process.env.PACK_VERSION || null, autopilot_phase: 'master', ts: now, trace_id: traceId,
       });
-      rtAny?.broadcastAiEvent?.({ type: 'master.review', user_id: userId, session_id: input.sessionId, ts: now, trace_id: traceId, payload: { notes: masterReviewText, decision: masterDecision } });
+      rtAny?.broadcastAiEvent?.({ type: 'master.review', user_id: userId, session_id: sessionId, ts: now, trace_id: traceId, payload: { notes: masterReviewText, decision: masterDecision } });
 
       // AI reply → 실제 라우트 호출
       const llmResp = await (app as any).inject({
@@ -109,33 +117,33 @@ export async function registerDialogueRoutes(app: FastifyInstance) {
         locale: 'ko'
       });
       await db.collection('ai_events').insertOne({
-        user_id: userId, session_id: input.sessionId, event_type: 'llm.reply', payload: { text: aiText, next_question: nextQuestion },
+        user_id: userId, session_id: sessionId, event_type: 'llm.reply', payload: { text: aiText, next_question: nextQuestion },
         provider: process.env.LLM_PROVIDER || 'gemini', model: process.env.GEMINI_MODEL || null,
         pack_version: process.env.PACK_VERSION || null, autopilot_phase: 'llm', ts: now, trace_id: traceId,
       });
-      rtAny?.broadcastAiEvent?.({ type: 'llm.reply', user_id: userId, session_id: input.sessionId, ts: now, trace_id: traceId, payload: { text: aiText, next_question: nextQuestion } });
+      rtAny?.broadcastAiEvent?.({ type: 'llm.reply', user_id: userId, session_id: sessionId, ts: now, trace_id: traceId, payload: { text: aiText, next_question: nextQuestion } });
 
       // persist ai turn
-      await db.collection('dialogue_turns').insertOne({ user_id: userId, session_id: input.sessionId, role: 'ai', text: aiText, intent, created_at: now, trace_id: traceId });
+      await db.collection('dialogue_turns').insertOne({ user_id: userId, session_id: sessionId, role: 'ai', text: aiText, intent, created_at: now, trace_id: traceId });
 
       // naive rolling session summary upsert
       const sumRes = await db.collection('session_summaries').updateOne(
-        { user_id: userId, session_id: input.sessionId },
-        { $set: { user_id: userId, session_id: input.sessionId, updated_at: now }, $setOnInsert: { created_at: now } },
+        { user_id: userId, session_id: sessionId },
+        { $set: { user_id: userId, session_id: sessionId, updated_at: now }, $setOnInsert: { created_at: now } },
         { upsert: true }
       );
       await db.collection('ai_events').insertOne({
-        user_id: userId, session_id: input.sessionId, event_type: 'summary.upserted', payload: { updated_at: now, upserted: sumRes?.upsertedId },
+        user_id: userId, session_id: sessionId, event_type: 'summary.upserted', payload: { updated_at: now, upserted: sumRes?.upsertedId },
         provider: process.env.LLM_PROVIDER || 'gemini', model: process.env.GEMINI_MODEL || null,
         pack_version: process.env.PACK_VERSION || null, autopilot_phase: 'summary', ts: now, trace_id: traceId,
       });
-      rtAny?.broadcastAiEvent?.({ type: 'summary.upserted', user_id: userId, session_id: input.sessionId, ts: now, trace_id: traceId, payload: { updated_at: now } });
+      rtAny?.broadcastAiEvent?.({ type: 'summary.upserted', user_id: userId, session_id: sessionId, ts: now, trace_id: traceId, payload: { updated_at: now } });
 
       // broadcast intent
       const rt: any = (app as any)._realtime;
-      rt?.broadcastDialogueIntent?.({ user_id: userId, session_id: input.sessionId, intent, ts: now, trace_id: traceId });
+      rt?.broadcastDialogueIntent?.({ user_id: userId, session_id: sessionId, intent, ts: now, trace_id: traceId });
 
-      reply.send({ text: aiText, intent, state, traceId });
+      reply.send({ text: aiText, intent, state, traceId, sessionId });
     } catch (e: any) {
       if (e?.name==='ZodError') return reply.code(400).send({ error:'invalid_input', issues: e.issues });
       reply.code(500).send({ error: e?.message || 'error' });
