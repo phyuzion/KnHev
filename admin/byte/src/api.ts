@@ -123,6 +123,10 @@ export async function listSessions(userId: string, limit = 20): Promise<{ items:
   p.set('limit', String(limit));
   return fetchJson(`/trpc/sessions.list?${p.toString()}`)
 }
+
+export async function ensureSession(userId: string): Promise<{ _id: string }> {
+  return fetchJson('/trpc/sessions.ensure', { method: 'POST', body: JSON.stringify({ input: { userId } }) })
+}
 export async function listDialogueTurns(sessionId: string, limit = 100): Promise<{ items: any[] }> {
   const p = new URLSearchParams();
   p.set('sessionId', sessionId);
@@ -181,6 +185,37 @@ export async function listKnowledgePacks(): Promise<{ items: KnowledgePack[] }> 
 }
 export async function upsertKnowledgePack(input: Partial<KnowledgePack>): Promise<KnowledgePack> {
   return fetchJson('/trpc/knowledge.packs.upsert', { method: 'POST', body: JSON.stringify({ input }) })
+}
+
+// Bible Rules
+export type BibleRule = { _id?: string; rule_text: string; category?: string; status?: 'draft'|'active'|'archived'; source?: string; tags?: string[]; updated_at?: string };
+export async function listBibleRules(params?: { q?: string; status?: string; category?: string; source?: string; limit?: number }): Promise<{ items: BibleRule[] }> {
+  const p = new URLSearchParams();
+  if (params?.q) p.set('q', params.q);
+  if (params?.status) p.set('status', params.status);
+  if (params?.category) p.set('category', params.category);
+  if (params?.source) p.set('source', params.source);
+  if (params?.limit) p.set('limit', String(params.limit));
+  return fetchJson(`/trpc/bible.rules.list?${p.toString()}`)
+}
+export async function upsertBibleRule(input: Partial<BibleRule> & { _id?: string }): Promise<{ _id: string }> {
+  return fetchJson('/trpc/bible.rules.upsert', { method: 'POST', body: JSON.stringify({ input }) })
+}
+export async function archiveBibleRule(input: { ruleId: string; reason?: string }): Promise<{ ok: true }> {
+  return fetchJson('/trpc/bible.rules.archive', { method: 'POST', body: JSON.stringify({ input }) })
+}
+export async function promoteBibleRule(input: { ruleId: string; notes?: string }): Promise<{ ok: true }> {
+  return fetchJson('/trpc/bible.rules.promote', { method: 'POST', body: JSON.stringify({ input }) })
+}
+export async function listBibleRuleChanges(params?: { ruleId?: string; limit?: number }): Promise<{ items: any[] }> {
+  const p = new URLSearchParams();
+  if (params?.ruleId) p.set('ruleId', params.ruleId);
+  if (params?.limit) p.set('limit', String(params.limit));
+  return fetchJson(`/trpc/bible.rules.changes.list?${p.toString()}`)
+}
+
+export async function proposeRuleFromDialogue(input: { sessionId?: string; userId?: string; limit?: number }): Promise<{ ok: boolean; proposal: any; traceId: string }> {
+  return fetchJson('/trpc/bible.rules.proposeFromDialogue', { method: 'POST', body: JSON.stringify({ input }) })
 }
 
 // MAGI / AI master

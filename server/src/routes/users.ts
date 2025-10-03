@@ -10,8 +10,64 @@ export async function registerUserRoutes(app: FastifyInstance) {
       if (!db) return reply.code(500).send({ error: 'db_not_ready' });
       const q = (req.query as any) || {};
       const limit = Math.min(Number(q.limit || 50), 200);
-      const items = await db.collection('user_profiles').find({}).sort({ updated_at: -1 }).limit(limit).toArray();
-      reply.send({ items: items.map((x:any)=>({ _id: x._id, display_name: x.display_name, locale: x.locale, avatar_url: x.avatar_url, updated_at: x.updated_at })) });
+      const search = (q.q ? String(q.q).trim() : '') || '';
+
+      // Primary source: user_profiles
+      const profFilter: any = {};
+      if (search) profFilter.$or = [
+        { _id: { $regex: search, $options: 'i' } },
+        { display_name: { $regex: search, $options: 'i' } },
+      ];
+      const profiles = await db.collection('user_profiles')
+        .find(profFilter)
+        .sort({ updated_at: -1 })
+        .limit(limit)
+        .toArray();
+
+      // Secondary source: recent sessions (in case profiles are missing)
+      const sessFilter: any = {};
+      if (search) sessFilter.user_id = { $regex: search, $options: 'i' };
+      const recentSessions = await db.collection('sessions')
+        .find(sessFilter)
+        .project({ user_id: 1, t_start: 1 })
+        .sort({ t_start: -1 })
+        .limit(limit * 2)
+        .toArray();
+
+      const byId: Record<string, any> = {};
+      for (const p of profiles) {
+        byId[p._id] = {
+          _id: p._id,
+          display_name: p.display_name,
+          locale: p.locale,
+          avatar_url: p.avatar_url,
+          current_session_id: p.current_session_id,
+          updated_at: p.updated_at || p.created_at || null,
+        };
+      }
+      for (const s of recentSessions) {
+        const id = s.user_id;
+        if (!id) continue;
+        if (!byId[id]) {
+          byId[id] = {
+            _id: id,
+            display_name: undefined,
+            locale: undefined,
+            avatar_url: undefined,
+            updated_at: s.t_start || null,
+          };
+        } else {
+          // keep the latest timestamp
+          const cur = byId[id]?.updated_at;
+          if (!cur || (s.t_start && s.t_start > cur)) byId[id].updated_at = s.t_start;
+        }
+      }
+
+      const merged = Object.values(byId)
+        .sort((a: any, b: any) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
+        .slice(0, limit);
+
+      reply.send({ items: merged });
     } catch (e:any) { reply.code(500).send({ error: e?.message || 'error' }); }
   });
 
